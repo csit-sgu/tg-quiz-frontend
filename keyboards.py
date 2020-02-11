@@ -35,9 +35,11 @@ class TasksKeyboard(Keyboard):
 
     @classmethod
     def get_keyboard(cls, telegram_id=None):
-        tasks = backend_api.get_tasks()
+        status, tasks = backend_api.get_tasks()
         titles_keyboard = [[cls.CANCEL]]
-        titles_keyboard.extend([task.get("title")] for task in tasks)
+        if status == 200:
+            titles_keyboard.extend([task.get("title")] for task in tasks)
+
         return titles_keyboard
 
 

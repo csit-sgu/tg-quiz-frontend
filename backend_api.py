@@ -2,46 +2,20 @@ import requests
 import urllib
 from config import BACKEND_URL
 import logging
+import json
+
+from typing import Tuple, Dict
 
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def register_user(tg_id, username, fullname) -> bool:
-    logger.debug(f"Registering user with id={tg_id}; username={username}")
+def make_request(method: str, url: str, **kwargs) -> Tuple[int, Dict]:
     try:
-        response = requests.post(f"{BACKEND_URL}/profiles/", data={
-            "tg_id": tg_id,
-            "username": username,
-            "fullname": fullname
-        })
-    except Exception as e:
-        logger.debug(f"Got exception while making request: {e}")
-        return False
-
-    logger.debug(
-        f"Got response from backend: "
-        f"Status={response.status_code}; "
-        f"Text={response.text[:200]}..."
-    )
-
-    return response.status_code == 201
-
-
-def get_tasks():
-    response = requests.get(f"{BACKEND_URL}/tasks/")
-    return response.json()
-
-
-def get_task(title: str):
-    logger.debug(f"Trying to retrieve task with title={title}")
-    try:
-        response = requests.get(
-            "http://127.0.0.1:8000/api/get_task/"
-            + urllib.parse.quote(title)
-        )
-        task = response.json()
+        response = requests.request(method, url, **kwargs)
+        answer = response.json()
 
     except Exception as e:
         logger.debug(f"Got exception while making request: {e}")
@@ -53,4 +27,51 @@ def get_task(title: str):
         f"Text={response.text[:200]}..."
     )
 
-    return response.status_code, task
+    return response.status_code, answer
+
+
+def post_request(url: str, **kwargs):
+    return make_request("post", url, **kwargs)
+
+
+def put_request(url: str, **kwargs):
+    return make_request("put", url, **kwargs)
+
+
+def get_request(url: str, **kwargs):
+    return make_request("get", url, **kwargs)
+
+
+def register_user(tg_id: int, username: str, fullname: str) -> Tuple[int, Dict]:
+    logger.debug(f"Trying to register user with id={tg_id}; username={username}")
+    return post_request(f"{BACKEND_URL}/profiles/", data={
+        "tg_id": tg_id,
+        "username": username,
+        "fullname": fullname
+    })
+
+
+def get_tasks():
+    logger.debug(f"Trying to retrieve all tasks")
+    return get_request(f"{BACKEND_URL}/tasks/")
+
+
+def get_task(title: str) -> Tuple[int, Dict]:
+    logger.debug(f"Trying to retrieve task with title={title}")
+    return get_request(f"{BACKEND_URL}/api/get_task/" + urllib.parse.quote(title))
+
+
+def save_state(last_state: int, tg_id: int, user_data: dict) -> Tuple[int, Dict]:
+    user_data_dumped = json.dumps(user_data)
+    logger.debug(f"Trying to save state for user with id={tg_id}; state={last_state}; user_data={user_data_dumped}")
+
+    return put_request(f"{BACKEND_URL}/api/state/update/{tg_id}/", data={
+        "last_state": last_state,
+        "tg_id": tg_id,
+        "user_data": user_data_dumped
+    })
+
+
+def get_state(tg_id: int) -> Tuple[int, dict]:
+    logger.debug(f"Trying to get state for user with id={tg_id}")
+    return get_request(f"{BACKEND_URL}/api/state/get/{tg_id}/")

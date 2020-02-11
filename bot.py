@@ -6,6 +6,7 @@ from telegram import Update, User, Bot
 
 import logging
 from os import environ
+import json
 from config import TG_TOKEN, REQUEST_KWARGS
 
 import backend_api
@@ -16,12 +17,14 @@ from keyboards import (
 from utils import *
 from states import States
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def start(bot: Bot, update: Update, user_data):
+def start(bot: Bot, update: Update, user_data: dict):
+    user_data.update({"chosen_task": None})
+
     update.message.reply_text(
         "Привет! Ты вошел в телеграм-квиз с мемами про наш любимый КНиИТ!",
         reply_markup=ReplyKeyboardRemove()
@@ -48,6 +51,19 @@ def username_check(bot: Bot, update: Update, user_data):
         return States.main_menu(bot, update, user_data)
 
 
+def resume_bot(bot: Bot, update: Update, user_data):
+    status_code, state = backend_api.get_state(update.message.from_user.id)
+
+    user_data.update(json.loads(state["user_data"]))
+    last_state = state["last_state"]
+
+    for handler in conversation_handler.states[last_state]:
+        if handler.filters.filter(update):
+            return handler.callback(bot, update, user_data)
+
+    return last_state
+
+
 def stop(bot, update):
     update.message.reply_text('Пока!', reply_markup=ReplyKeyboardRemove())
     update.message.reply_text('Для того, чтобы начать работу с ботом заново напишите /start')
@@ -72,6 +88,7 @@ def main():
 conversation_handler = ConversationHandler(
     entry_points=[
         CommandHandler('start', start, pass_user_data=True),
+        MessageHandler(Filters.text, resume_bot, pass_user_data=True),
     ],
 
     states={
