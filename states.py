@@ -13,7 +13,6 @@ from telegram import Update, User, Bot
 
 def save_state(func):
     def wrapper(bot: Bot, update: Update, user_data: dict, *args, **kwargs):
-        print(user_data)
         last_state = func(bot, update, user_data, *args, **kwargs)
         backend_api.save_state(last_state, update.message.from_user.id, user_data)
         return last_state
@@ -101,27 +100,52 @@ class States:
     @staticmethod
     @save_state
     def type_answer(bot: Bot, update: Update, user_data: dict):
-        update.message.reply_text(
-            "Вводи свой ответ, я его проверю.",
-            reply_markup=ReplyKeyboardMarkup(AnsweringKeyboard.get_keyboard())
+        status_code, response = backend_api.get_attempts(
+            tg_id=update.message.from_user.id,
+            task_title=user_data["chosen_task"]
         )
-        return ANSWERING
+        if len(response) != 0:
+            update.message.reply_text(
+                "Ты уже решил эту задачу! Выбери другую.",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+
+            return TASK_CHOOSING
+
+        else:
+            update.message.reply_text(
+                "Вводи свой ответ, я его проверю.",
+                reply_markup=ReplyKeyboardMarkup(AnsweringKeyboard.get_keyboard())
+            )
+            return ANSWERING
 
     @staticmethod
     @save_state
     def accept_answer(bot: Bot, update: Update, user_data: dict):
         answer = update.message.text
-        if answer == "хуй":
+        status_code, task = backend_api.get_task(user_data["chosen_task"])
+        if status_code == 200:
+            backend_api.create_attempt(update.message.from_user.id, user_data["chosen_task"], answer)
+
+            if answer == task["answer"]:
+                update.message.reply_text(
+                    "Ты ввел правильный ответ! Возвращайся к другим задачам",
+                    reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+                )
+
+                return ANSWER_RIGHT
+            else:
+                update.message.reply_text(
+                    "К сожалению, твой ответ неверный =(",
+                    reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+                )
+
+                return ANSWER_WRONG
+
+        else:
             update.message.reply_text(
-                "Ты ввел правильный ответ! Возвращайся к другим задачам",
+                "Произошла ошибка в работе квиза. Мы уже работаем над её устранением!",
                 reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
             )
 
             return ANSWER_RIGHT
-        else:
-            update.message.reply_text(
-                "К сожалению, твой ответ неверный =(",
-                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
-            )
-
-            return ANSWER_WRONG

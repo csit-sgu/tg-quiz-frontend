@@ -75,3 +75,21 @@ def save_state(last_state: int, tg_id: int, user_data: dict) -> Tuple[int, Dict]
 def get_state(tg_id: int) -> Tuple[int, dict]:
     logger.debug(f"Trying to get state for user with id={tg_id}")
     return get_request(f"{BACKEND_URL}/api/state/get/{tg_id}/")
+
+
+def create_attempt(tg_id: int, task_title: str, answer: str):
+    return post_request(f"{BACKEND_URL}/attempts/", data={
+        "profile": json.dumps({"tg_id": tg_id}),
+        "task": json.dumps({"title": task_title}),
+        "answer": answer
+    })
+
+
+def get_attempts(tg_id: int=None, task_title: str=None):
+    data = {}
+    if tg_id is not None:
+        data["tg_id"] = tg_id
+    if task_title is not None:
+        data["task_title"] = task_title
+
+    return get_request(f"{BACKEND_URL}/api/attempts/", data=data)
