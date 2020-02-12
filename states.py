@@ -81,6 +81,8 @@ class States:
             message = "Произошла ошибка в работе квиза. Мы уже работаем над её устранением!"
             keyboard = ContinueKeyboard.get_keyboard()
 
+            return MAIN_MENU
+
         else:
             message = '\n'.join([
                 f"*{task['title']}*",
