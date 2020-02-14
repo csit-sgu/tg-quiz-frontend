@@ -12,10 +12,10 @@ from config import TG_TOKEN, REQUEST_KWARGS
 import backend_api
 from keyboards import (
     MenuKeyboard, TasksKeyboard, TaskChosenKeyboard, ContinueKeyboard,
-    AnsweringKeyboard,
+    AnsweringKeyboard, AdminKeyboard
 )
 from utils import *
-from states import States
+from states import States, AdminStates
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -98,6 +98,7 @@ conversation_handler = ConversationHandler(
             MessageHandler(Filters.regex(MenuKeyboard.CHOOSE_TASK), States.choose_task, pass_user_data=True),
             MessageHandler(Filters.regex(MenuKeyboard.TOP_10), States.top_10, pass_user_data=True),
             MessageHandler(Filters.regex(MenuKeyboard.RULES), States.rules, pass_user_data=True),
+            CommandHandler('admin', AdminStates.admin_panel, pass_user_data=True)
         ],
         TASK_CHOOSING: [
             MessageHandler(Filters.regex(TasksKeyboard.CANCEL), States.main_menu, pass_user_data=True),
@@ -112,7 +113,26 @@ conversation_handler = ConversationHandler(
             MessageHandler(Filters.text, States.accept_answer, pass_user_data=True),
         ],
         ANSWER_RIGHT: [MessageHandler(Filters.text, States.main_menu, pass_user_data=True)],
-        ANSWER_WRONG: [MessageHandler(Filters.text, States.show_task, pass_user_data=True)]
+        ANSWER_WRONG: [MessageHandler(Filters.text, States.show_task, pass_user_data=True)],
+
+        ADMIN_MENU: [
+            MessageHandler(Filters.regex(AdminKeyboard.CANCEL), States.main_menu, pass_user_data=True),
+            MessageHandler(Filters.regex(AdminKeyboard.PUBLISH_TASK), AdminStates.choose_task_publish, pass_user_data=True),
+            MessageHandler(Filters.regex(AdminKeyboard.HIDE_TASK), AdminStates.choose_task_hide, pass_user_data=True),
+        ],
+
+        ADMIN_TASK_CHOOSE_HIDE: [
+            MessageHandler(Filters.regex(TasksKeyboard.CANCEL), AdminStates.admin_panel, pass_user_data=True),
+            MessageHandler(Filters.text, AdminStates.hide_task, pass_user_data=True),
+        ],
+
+        ADMIN_TASK_CHOOSE_PUBLISH: [
+            MessageHandler(Filters.regex(TasksKeyboard.CANCEL), AdminStates.admin_panel, pass_user_data=True),
+            MessageHandler(Filters.text, AdminStates.publish_task, pass_user_data=True),
+        ],
+
+        ADMIN_TASK_PUBLISHED: [MessageHandler(Filters.text, AdminStates.admin_panel, pass_user_data=True)],
+        ADMIN_ACCESS_DENIED: [MessageHandler(Filters.text, States.main_menu, pass_user_data=True)],
     },
 
     fallbacks=[CommandHandler('stop', stop)]

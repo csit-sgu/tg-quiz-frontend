@@ -2,7 +2,7 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from keyboards import (
     MenuKeyboard, TasksKeyboard, TaskChosenKeyboard, ContinueKeyboard,
-    AnsweringKeyboard,
+    AnsweringKeyboard, AdminKeyboard, PublishTasksKeyboard
 )
 from utils import *
 import backend_api
@@ -36,10 +36,38 @@ class States:
     def main_menu(bot: Bot, update: Update, user_data: dict):
         user_data["chosen_task"] = None
 
-        update.message.reply_text("Твой счет: 0")
+        status_code, response = backend_api.get_attempts(
+            tg_id=update.message.from_user.id,
+            task_title=user_data["chosen_task"]
+        )
+
+        menu_text = [
+
+        ]
+
+        if status_code == 200:
+            if len(response) != 0:
+                menu_text.append("Твои решенные задачи:")
+                for attempt in response:
+                    menu_text.append(
+                        f"_{attempt['task']['title']}_ "
+                        f"({attempt['task']['base_score']})"
+                    )
+            else:
+                menu_text.append("У тебя еще нет решенных задач")
+        else:
+            menu_text.append(
+                "К сожалению, не удалось получить данные о твоих попытках =(\n"
+                "Попробуй обратиться к боту чуть позже."
+            )
+
+        menu_text.append("\n*Итоговый счет*: 0\n*Место в топе*: 0")
+
+        update.message.reply_text("\n".join(menu_text), parse_mode="Markdown")
+
         update.message.reply_text(
             "Выбери следующее действие...",
-            reply_markup=ReplyKeyboardMarkup(MenuKeyboard.get_keyboard())
+            reply_markup=ReplyKeyboardMarkup(MenuKeyboard.get_keyboard(update.message.from_user.id))
         )
 
         return MAIN_MENU
@@ -49,11 +77,21 @@ class States:
     def choose_task(bot: Bot, update: Update, user_data: dict):
         user_data["chosen_task"] = None
 
-        update.message.reply_text(
-            "Какую задачу ты хочешь сдать?",
-            reply_markup=ReplyKeyboardMarkup(TasksKeyboard.get_keyboard())
-        )
-        return TASK_CHOOSING
+        status, published = backend_api.get_published_tasks()
+        if len(published) == 0:
+            update.message.reply_text(
+                "Пока что не опубликовано ни одной задачи =(",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+
+            # okay this is epic (pile of shit)
+            return ANSWER_RIGHT
+        else:
+            update.message.reply_text(
+                "Какую задачу ты хочешь сдать?",
+                reply_markup=ReplyKeyboardMarkup(TasksKeyboard.get_keyboard())
+            )
+            return TASK_CHOOSING
 
     @staticmethod
     @save_state
@@ -76,21 +114,35 @@ class States:
             task_title = update.message.text
             user_data["chosen_task"] = task_title
 
-        status_code, task = backend_api.get_task(task_title)
+        status_code, tasks_response = backend_api.get_published_tasks()
         if status_code != 200:
-            message = "Произошла ошибка в работе квиза. Мы уже работаем над её устранением!"
-            keyboard = ContinueKeyboard.get_keyboard()
+            update.message.reply_text(
+                "Произошла ошибка в работе квиза. Мы уже работаем над её устранением!",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
 
             return MAIN_MENU
 
-        else:
-            message = '\n'.join([
-                f"*{task['title']}*",
-                f"{task['statement']}",
-                "",
-                f"_Теги: {task['tags']}_",
-            ])
-            keyboard = TaskChosenKeyboard.get_keyboard()
+        titles = {task.get("title"): task for task in tasks_response}
+
+        if task_title not in titles.keys():
+            update.message.reply_text(
+                "Такой задачи не найдено, попробуй ввести другое название!",
+                reply_markup=ReplyKeyboardMarkup(TasksKeyboard.get_keyboard())
+            )
+
+            return TASK_CHOOSING
+
+        # status_code, task = backend_api.get_task(task_title)
+        task = titles[task_title]
+
+        message = '\n'.join([
+            f"*{task['title']}*",
+            f"{task['statement']}",
+            "",
+            f"_Теги: {task['tags']}_",
+        ])
+        keyboard = TaskChosenKeyboard.get_keyboard()
 
         update.message.reply_text(
             message, parse_mode="Markdown",
@@ -151,3 +203,88 @@ class States:
             )
 
             return ANSWER_RIGHT
+
+
+class AdminStates:
+    @staticmethod
+    @save_state
+    def admin_panel(bot: Bot, update: Update, user_data: dict):
+        status_code, data = backend_api.get_profile(update.message.from_user.id)
+        if status_code != 200:
+            update.message.reply_text(
+                "Не удалось аутентифицировать пользователя. Доступ запрещен.",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+
+            return ADMIN_ACCESS_DENIED
+
+        if not data["is_admin"]:
+            update.message.reply_text(
+                "Вы не являетесь администратором. Доступ запрещен.",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+
+            return ADMIN_ACCESS_DENIED
+
+        update.message.reply_text(
+            "Выберите действие",
+            reply_markup=ReplyKeyboardMarkup(AdminKeyboard.get_keyboard())
+        )
+
+        return ADMIN_MENU
+
+    @staticmethod
+    @save_state
+    def choose_task_hide(bot: Bot, update: Update, user_data: dict):
+        update.message.reply_text(
+            "Выберите задачу, которую хотите скрыть",
+            reply_markup=ReplyKeyboardMarkup(PublishTasksKeyboard.get_keyboard())
+        )
+
+        return ADMIN_TASK_CHOOSE_HIDE
+
+    @staticmethod
+    @save_state
+    def choose_task_publish(bot: Bot, update: Update, user_data: dict):
+        update.message.reply_text(
+            "Выберите задачу, которую хотите опубликовать",
+            reply_markup=ReplyKeyboardMarkup(PublishTasksKeyboard.get_keyboard())
+        )
+
+        return ADMIN_TASK_CHOOSE_PUBLISH
+
+    @staticmethod
+    @save_state
+    def hide_task(bot: Bot, update: Update, user_data: dict):
+        title = update.message.text
+        status, data = backend_api.hide_task(title)
+        if status != 200:
+            update.message.reply_text(
+                "Не удалось скрыть задачу.",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+        else:
+            update.message.reply_text(
+                "Задача была скрыта.",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+
+        return ADMIN_TASK_PUBLISHED
+
+    @staticmethod
+    @save_state
+    def publish_task(bot: Bot, update: Update, user_data: dict):
+        title = update.message.text
+        status, data = backend_api.publish_task(title)
+        if status != 200:
+            update.message.reply_text(
+                "Не удалось опубликовать задачу.",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+        else:
+            update.message.reply_text(
+                "Задача была опубликована.",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+
+        return ADMIN_TASK_PUBLISHED

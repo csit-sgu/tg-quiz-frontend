@@ -3,6 +3,7 @@ import urllib
 from config import BACKEND_URL
 import logging
 import json
+import datetime as dt
 
 from typing import Tuple, Dict
 
@@ -41,6 +42,10 @@ def get_request(url: str, **kwargs):
     return make_request("get", url, **kwargs)
 
 
+def patch_request(url: str, **kwargs):
+    return make_request("patch", url, **kwargs)
+
+
 def register_user(tg_id: int, username: str, fullname: str) -> Tuple[int, Dict]:
     logger.debug(f"Trying to register user with id={tg_id}; username={username}")
     return post_request(f"{BACKEND_URL}/profiles/", data={
@@ -53,6 +58,11 @@ def register_user(tg_id: int, username: str, fullname: str) -> Tuple[int, Dict]:
 def get_tasks():
     logger.debug(f"Trying to retrieve all tasks")
     return get_request(f"{BACKEND_URL}/tasks/")
+
+
+def get_published_tasks():
+    logger.debug(f"Trying to retrieve all published tasks")
+    return get_request(f"{BACKEND_URL}/api/tasks/published/")
 
 
 def get_task(title: str) -> Tuple[int, Dict]:
@@ -92,3 +102,22 @@ def get_attempts(tg_id: int=None, task_title: str=None):
         data["task_title"] = task_title
 
     return get_request(f"{BACKEND_URL}/api/attempts/", data=data)
+
+
+def get_profile(tg_id: int):
+    return get_request(f"{BACKEND_URL}/api/profile/get/{tg_id}")
+
+
+def publish_task(title: str):
+    url_title = urllib.parse.quote(title)
+    return patch_request(f"{BACKEND_URL}/api/tasks/{url_title}/update/", data={
+        "first_published": dt.datetime.now(),
+        "is_public": True
+    })
+
+
+def hide_task(title: str):
+    url_title = urllib.parse.quote(title)
+    return patch_request(f"{BACKEND_URL}/api/tasks/{url_title}/update/", data={
+        "is_public": False
+    })

@@ -9,13 +9,22 @@ class Keyboard(ABC):
 
 
 class MenuKeyboard(Keyboard):
-    CHOOSE_TASK = "Выбрать задание"
-    TOP_10 = "Топ-10"
-    RULES = "Правила"
+    CHOOSE_TASK = "Выбрать задание📚"
+    TOP_10 = "Топ-10📊"
+    RULES = "Правилаℹ️"
     ADMIN = "/admin"
 
     @classmethod
     def get_keyboard(cls, telegram_id=None):
+        if telegram_id is not None:
+            status_code, data = backend_api.get_profile(telegram_id)
+            if status_code == 200 and data["is_admin"]:
+                return [
+                    [cls.ADMIN],
+                    [cls.CHOOSE_TASK],
+                    [cls.TOP_10, cls.RULES],
+                ]
+
         return [
             [cls.CHOOSE_TASK],
             [cls.TOP_10, cls.RULES],
@@ -23,7 +32,7 @@ class MenuKeyboard(Keyboard):
 
 
 class BackToMenuKeyboard(Keyboard):
-    CANCEL = "Вернуться в меню"
+    CANCEL = "Вернуться в меню↩️"
 
     @classmethod
     def get_keyboard(cls, telegram_id=None):
@@ -31,7 +40,20 @@ class BackToMenuKeyboard(Keyboard):
 
 
 class TasksKeyboard(Keyboard):
-    CANCEL = "Вернуться в меню"
+    CANCEL = "Вернуться в меню↩️"
+
+    @classmethod
+    def get_keyboard(cls, telegram_id=None):
+        status, tasks = backend_api.get_published_tasks()
+        titles_keyboard = [[cls.CANCEL]]
+        if status == 200:
+            titles_keyboard.extend([task.get("title")] for task in tasks)
+
+        return titles_keyboard
+
+
+class PublishTasksKeyboard(Keyboard):
+    CANCEL = "Вернуться в меню↩️"
 
     @classmethod
     def get_keyboard(cls, telegram_id=None):
@@ -44,8 +66,8 @@ class TasksKeyboard(Keyboard):
 
 
 class TaskChosenKeyboard(Keyboard):
-    TYPE_ANSWER = "Ввести ответ"
-    CANCEL = "Назад"
+    TYPE_ANSWER = "Ввести ответ✏️"
+    CANCEL = "Назад↩️"
 
     @classmethod
     def get_keyboard(cls, telegram_id=None):
@@ -56,7 +78,7 @@ class TaskChosenKeyboard(Keyboard):
 
 
 class ContinueKeyboard(Keyboard):
-    CONTINUE = "Продолжить"
+    CONTINUE = "Продолжить➡️"
 
     @classmethod
     def get_keyboard(cls, telegram_id=None):
@@ -64,8 +86,22 @@ class ContinueKeyboard(Keyboard):
 
 
 class AnsweringKeyboard(Keyboard):
-    CANCEL = "Отмена"
+    CANCEL = "Отмена↩️"
 
     @classmethod
     def get_keyboard(cls, telegram_id=None):
         return [[cls.CANCEL]]
+
+
+class AdminKeyboard(Keyboard):
+    CANCEL = "Вернуться в меню↩️"
+    PUBLISH_TASK = "Опубликовать задачу"
+    HIDE_TASK = "Скрыть задачу"
+
+    @classmethod
+    def get_keyboard(cls, telegram_id=None):
+        return [
+            [cls.CANCEL],
+            [cls.PUBLISH_TASK],
+            [cls.HIDE_TASK],
+        ]
