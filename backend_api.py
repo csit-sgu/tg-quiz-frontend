@@ -55,6 +55,11 @@ def register_user(tg_id: int, username: str, fullname: str) -> Tuple[int, Dict]:
     })
 
 
+def get_profiles():
+    logger.debug(f"Trying to retrieve all profiles")
+    return get_request(f"{BACKEND_URL}/profiles/")
+
+
 def get_tasks():
     logger.debug(f"Trying to retrieve all tasks")
     return get_request(f"{BACKEND_URL}/tasks/")

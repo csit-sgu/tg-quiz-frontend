@@ -97,6 +97,8 @@ class AdminKeyboard(Keyboard):
     CANCEL = "Вернуться в меню↩️"
     PUBLISH_TASK = "Опубликовать задачу"
     HIDE_TASK = "Скрыть задачу"
+    ANNOUNCE = "Сделать объявление"
+    MESSAGE_PLAYER = "Написать сообщение от имени бота"
 
     @classmethod
     def get_keyboard(cls, telegram_id=None):
@@ -104,4 +106,6 @@ class AdminKeyboard(Keyboard):
             [cls.CANCEL],
             [cls.PUBLISH_TASK],
             [cls.HIDE_TASK],
+            [cls.ANNOUNCE],
+            [cls.MESSAGE_PLAYER],
         ]

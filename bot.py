@@ -12,7 +12,7 @@ from config import TG_TOKEN, REQUEST_KWARGS
 import backend_api
 from keyboards import (
     MenuKeyboard, TasksKeyboard, TaskChosenKeyboard, ContinueKeyboard,
-    AnsweringKeyboard, AdminKeyboard
+    AnsweringKeyboard, AdminKeyboard, BackToMenuKeyboard
 )
 from utils import *
 from states import States, AdminStates
@@ -20,6 +20,8 @@ from states import States, AdminStates
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+raiseExceptions = True
 
 
 def start(bot: Bot, update: Update, user_data: dict):
@@ -115,10 +117,23 @@ conversation_handler = ConversationHandler(
         ANSWER_RIGHT: [MessageHandler(Filters.text, States.main_menu, pass_user_data=True)],
         ANSWER_WRONG: [MessageHandler(Filters.text, States.show_task, pass_user_data=True)],
 
+        # ADMIN PANEL
+
         ADMIN_MENU: [
             MessageHandler(Filters.regex(AdminKeyboard.CANCEL), States.main_menu, pass_user_data=True),
             MessageHandler(Filters.regex(AdminKeyboard.PUBLISH_TASK), AdminStates.choose_task_publish, pass_user_data=True),
             MessageHandler(Filters.regex(AdminKeyboard.HIDE_TASK), AdminStates.choose_task_hide, pass_user_data=True),
+            MessageHandler(Filters.regex(AdminKeyboard.ANNOUNCE), AdminStates.wait_for_announcement, pass_user_data=True),
+            MessageHandler(Filters.regex(AdminKeyboard.MESSAGE_PLAYER), AdminStates.wait_for_message, pass_user_data=True),
+        ],
+
+        ADMIN_WAIT_FOR_ANNOUNCEMENT: [
+            MessageHandler(Filters.regex(BackToMenuKeyboard.CANCEL), AdminStates.admin_panel, pass_user_data=True),
+            MessageHandler(Filters.text, AdminStates.announce_message, pass_user_data=True),
+        ],
+        ADMIN_WAIT_FOR_MESSAGE: [
+            MessageHandler(Filters.regex(BackToMenuKeyboard.CANCEL), AdminStates.admin_panel, pass_user_data=True),
+            MessageHandler(Filters.text, AdminStates.message_plr, pass_user_data=True),
         ],
 
         ADMIN_TASK_CHOOSE_HIDE: [

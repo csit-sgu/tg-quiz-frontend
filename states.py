@@ -2,13 +2,21 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from keyboards import (
     MenuKeyboard, TasksKeyboard, TaskChosenKeyboard, ContinueKeyboard,
-    AnsweringKeyboard, AdminKeyboard, PublishTasksKeyboard
+    AnsweringKeyboard, AdminKeyboard, PublishTasksKeyboard, BackToMenuKeyboard
 )
 from utils import *
 import backend_api
+from time import sleep
+import logging
 
 # Typing
 from telegram import Update, User, Bot
+from typing import List
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+raiseExceptions = True
 
 
 def save_state(func):
@@ -288,3 +296,107 @@ class AdminStates:
             )
 
         return ADMIN_TASK_PUBLISHED
+
+    @staticmethod
+    @save_state
+    def wait_for_announcement(bot: Bot, update: Update, user_data: dict):
+        update.message.reply_text(
+            "Введите объявление (Отправка сообщений может занять несколько секунд)",
+            reply_markup=ReplyKeyboardMarkup(BackToMenuKeyboard.get_keyboard())
+        )
+
+        return ADMIN_WAIT_FOR_ANNOUNCEMENT
+
+    @staticmethod
+    @save_state
+    def wait_for_message(bot: Bot, update: Update, user_data: dict):
+        update.message.reply_text(
+            "Введите сообщение (Отправка сообщений может занять несколько секунд)",
+            reply_markup=ReplyKeyboardMarkup(BackToMenuKeyboard.get_keyboard())
+        )
+
+        return ADMIN_WAIT_FOR_MESSAGE
+
+    @staticmethod
+    @save_state
+    def announce_message(bot: Bot, update: Update, user_data: dict):
+        status, profiles = backend_api.get_profiles()
+        if status != 200:
+            pass
+        else:
+            ids = []
+            for profile in profiles:
+                ids.append(int(profile["tg_id"]))
+
+            return AdminStates.send_to_ids(ids, update.message.text, bot, update)
+
+    @staticmethod
+    @save_state
+    def message_plr(bot: Bot, update: Update, user_data: dict):
+        text = update.message.text
+        _ = text.split(maxsplit=1)
+
+        if len(_) != 2:
+            update.message.reply_text(
+                "Ошибка в сообщении, попробуйте еще раз",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+            return ADMIN_TASK_PUBLISHED
+
+        ids_text, msg = _
+        ids_split = filter(lambda s: len(s) > 0 and s.isnumeric(), ids_text.split(','))
+        ids = list(map(int, ids_split))
+
+        if len(ids) == 0:
+            update.message.reply_text(
+                "Все id пользователей неверно введены",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+
+            return ADMIN_TASK_PUBLISHED
+
+        else:
+            return AdminStates.send_to_ids(ids, msg, bot, update)
+
+    @staticmethod
+    def send_to_ids(ids: List[int], message: str, bot: Bot, update: Update):
+        errors = []
+        for tg_id in ids:
+            try:
+                bot.send_message(tg_id, message)
+                print(tg_id)
+            except Exception as e:
+                logger.debug(f"Got exception while announcing message: {e}")
+                errors.append((tg_id, str(e)))
+                sleep(0.3)
+
+            sleep(0.05)
+
+        if len(errors) == 0:
+            update.message.reply_text(
+                "Сообщение успешно отправлено всем пользователям",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard()),
+            )
+
+            # OKAY
+            return ADMIN_TASK_PUBLISHED
+
+        else:
+            error_msg = []
+            user_ids = []
+
+            for err in errors:
+                user_ids.append(str(err[0]))
+                error_msg.append(f"{err[0]}. Reason: {err[1]}")
+
+            msg = "\n".join(error_msg)
+            user_ids = ",".join(user_ids)
+
+            update.message.reply_text(
+                "Во время отправки сообщений возникли следующие ошибки:\n"
+                f"{msg}\n\n{user_ids}",
+                reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+            )
+
+            # OKAY
+            return ADMIN_TASK_PUBLISHED
