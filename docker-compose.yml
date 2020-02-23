@@ -5,3 +5,5 @@ services:
     build: .
     container_name: tgquiz_bot
     command: sh -c "python3 bot.py"
+    environment:
+      - production: true
