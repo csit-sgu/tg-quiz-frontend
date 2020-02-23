@@ -133,7 +133,7 @@ class States:
                 "Попробуй обратиться к боту чуть позже."
             )
 
-        menu_text.append(f"\n*Итоговый счет*: {full_score}\n*Место в топе*: 0")
+        menu_text.append(f"\n*Итоговый счет*: {full_score}")
 
         update.message.reply_text("\n".join(menu_text), parse_mode="Markdown")
 
