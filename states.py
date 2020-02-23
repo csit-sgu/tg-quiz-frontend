@@ -7,6 +7,8 @@ from keyboards import (
 from utils import *
 import backend_api
 from time import sleep
+import datetime as dt
+from decimal import Decimal
 import logging
 
 # Typing
@@ -27,6 +29,18 @@ def save_state(func):
 
     return wrapper
 
+
+def calc_score(t, base_score=1000):
+    base_score = Decimal(base_score)
+    min_score = Decimal(100)
+    max_t = Decimal(720)
+    k = (base_score - min_score) / (max_t * max_t)
+
+    return round(min(k * (t - max_t) * (t - max_t) + min_score, base_score), 2)
+
+
+def calculate_attempts(attempts):
+    pass
 
 class States:
     @staticmethod
@@ -53,13 +67,30 @@ class States:
 
         ]
 
+        full_score = Decimal(0.0)
         if status_code == 200:
             if len(response) != 0:
                 menu_text.append("Твои решенные задачи:")
+
                 for attempt in response:
+                    try:
+                        ts = dt.datetime.strptime(attempt["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                    except ValueError:
+                        ts = dt.datetime.strptime(attempt["timestamp"], "%Y-%m-%dT%H:%M:%SZ")
+
+                    try:
+                        fp = dt.datetime.strptime(attempt["task"]["first_published"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                    except ValueError:
+                        fp = dt.datetime.strptime(attempt["task"]["first_published"], "%Y-%m-%dT%H:%M:%SZ")
+
+                    t = Decimal((ts - fp).total_seconds()) / Decimal(60)
+                    plr_score = calc_score(t, attempt["task"]["base_score"])
+                    print(plr_score)
+                    full_score += plr_score
+
                     menu_text.append(
                         f"_{attempt['task']['title']}_ "
-                        f"({attempt['task']['base_score']})"
+                        f"({plr_score})"
                     )
             else:
                 menu_text.append("У тебя еще нет решенных задач")
@@ -69,7 +100,7 @@ class States:
                 "Попробуй обратиться к боту чуть позже."
             )
 
-        menu_text.append("\n*Итоговый счет*: 0\n*Место в топе*: 0")
+        menu_text.append(f"\n*Итоговый счет*: {full_score}\n*Место в топе*: 0")
 
         update.message.reply_text("\n".join(menu_text), parse_mode="Markdown")
 
@@ -104,13 +135,64 @@ class States:
     @staticmethod
     @save_state
     def top_10(bot: Bot, update: Update, user_data: dict):
-        update.message.reply_text("какая то хуйня")
+        code, attempts = backend_api.get_attempts()
+
+        top = {}
+
+        for attempt in attempts:
+            if not attempt["solved"]:
+                continue
+
+            if attempt["profile"]["tg_id"] not in top:
+                top[attempt["profile"]["tg_id"]] = {
+                    "fullname": attempt["profile"]["fullname"],
+                    "username": attempt["profile"]["username"],
+                    "score": Decimal(0.0)
+                }
+
+            try:
+                ts = dt.datetime.strptime(attempt["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            except ValueError:
+                ts = dt.datetime.strptime(attempt["timestamp"], "%Y-%m-%dT%H:%M:%SZ")
+
+            try:
+                fp = dt.datetime.strptime(attempt["task"]["first_published"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            except ValueError:
+                fp = dt.datetime.strptime(attempt["task"]["first_published"], "%Y-%m-%dT%H:%M:%SZ")
+
+            t = Decimal((ts - fp).total_seconds()) / Decimal(60)
+            plr_score = calc_score(t, attempt["task"]["base_score"])
+            top[attempt["profile"]["tg_id"]]["score"] += plr_score
+
+        try:
+            top_list = []
+            for tg_id, stats in top.items():
+                top_list.append((
+                    stats['score'],
+                    f"{stats['fullname']} (@{stats['username']}) -- {stats['score']}pts"
+                ))
+
+            top_list.sort(key=lambda p: p[0], reverse=True)
+
+            top = ["Топ-10:"]
+            print(top_list)
+            for place, (score, text) in enumerate(top_list, 1):
+                top.append(str(place).rjust(2, " ") + ". " + text)
+        except Exception as e:
+            print(e)
+
+        update.message.reply_text("\n".join(top))
         return MAIN_MENU
 
     @staticmethod
     @save_state
     def rules(bot: Bot, update: Update, user_data: dict):
-        update.message.reply_text("какая то хуйня")
+        with open("rules.jpg", "rb") as f:
+            try:
+                print(update.message.reply_photo(f, timeout=5))
+            except Exception as e:
+                print(e)
+
         return MAIN_MENU
 
     @staticmethod
@@ -121,6 +203,30 @@ class States:
         else:
             task_title = update.message.text
             user_data["chosen_task"] = task_title
+
+        status_code, response = backend_api.get_attempts(
+            tg_id=update.message.from_user.id,
+            task_title=user_data["chosen_task"]
+        )
+        if status_code != 200:
+            user_data["chosen_task"] = None
+
+            update.message.reply_text(
+                "Произошла ошибка в работе квиза. Мы уже работаем над её устранением!",
+                reply_markup=ReplyKeyboardMarkup(TasksKeyboard.get_keyboard())
+            )
+
+            return TASK_CHOOSING
+
+        if len(response) != 0:
+            user_data["chosen_task"] = None
+
+            update.message.reply_text(
+                "Ты уже решил эту задачу! Выбери другую.",
+                reply_markup=ReplyKeyboardMarkup(TasksKeyboard.get_keyboard())
+            )
+
+            return TASK_CHOOSING
 
         status_code, tasks_response = backend_api.get_published_tasks()
         if status_code != 200:
@@ -141,7 +247,6 @@ class States:
 
             return TASK_CHOOSING
 
-        # status_code, task = backend_api.get_task(task_title)
         task = titles[task_title]
 
         message = '\n'.join([
@@ -155,6 +260,11 @@ class States:
         update.message.reply_text(
             message, parse_mode="Markdown",
             reply_markup=ReplyKeyboardMarkup(keyboard)
+        )
+
+        update.message.reply_text(
+            "Вводи свой ответ и я его проверю, "
+            "или нажми кнопку Назад, чтобы выбрать другую задачу"
         )
 
         return TASK_SHOWN
@@ -198,11 +308,12 @@ class States:
                 return ANSWER_RIGHT
             else:
                 update.message.reply_text(
-                    "К сожалению, твой ответ неверный =(",
-                    reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+                    "К сожалению, твой ответ неверный =( Попробуй ввести другой ответ.",
+                    reply_markup=ReplyKeyboardMarkup(TaskChosenKeyboard.get_keyboard())
                 )
 
-                return ANSWER_WRONG
+                # return ANSWER_WRONG
+                return TASK_SHOWN
 
         else:
             update.message.reply_text(

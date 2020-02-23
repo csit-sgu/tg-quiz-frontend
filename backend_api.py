@@ -115,10 +115,20 @@ def get_profile(tg_id: int):
 
 def publish_task(title: str):
     url_title = urllib.parse.quote(title)
-    return patch_request(f"{BACKEND_URL}/api/tasks/{url_title}/update/", data={
-        "first_published": dt.datetime.now(),
-        "is_public": True
-    })
+    code, resp = get_task(title)
+
+    if code != 200:
+        return code, {}
+
+    if resp["first_published"] is None:
+        return patch_request(f"{BACKEND_URL}/api/tasks/{url_title}/update/", data={
+            "first_published": dt.datetime.now(),
+            "is_public": True
+        })
+    else:
+        return patch_request(f"{BACKEND_URL}/api/tasks/{url_title}/update/", data={
+            "is_public": True
+        })
 
 
 def hide_task(title: str):

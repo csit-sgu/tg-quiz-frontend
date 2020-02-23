@@ -17,7 +17,7 @@ from keyboards import (
 from utils import *
 from states import States, AdminStates
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -108,7 +108,8 @@ conversation_handler = ConversationHandler(
         ],
         TASK_SHOWN: [
             MessageHandler(Filters.regex(TaskChosenKeyboard.CANCEL), States.choose_task, pass_user_data=True),
-            MessageHandler(Filters.regex(TaskChosenKeyboard.TYPE_ANSWER), States.type_answer, pass_user_data=True),
+            MessageHandler(Filters.text, States.accept_answer, pass_user_data=True),
+            # MessageHandler(Filters.regex(TaskChosenKeyboard.TYPE_ANSWER), States.type_answer, pass_user_data=True),
         ],
         ANSWERING: [
             MessageHandler(Filters.regex(AnsweringKeyboard.CANCEL), States.show_task, pass_user_data=True),

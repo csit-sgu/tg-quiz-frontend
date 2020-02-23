@@ -72,7 +72,7 @@ class TaskChosenKeyboard(Keyboard):
     @classmethod
     def get_keyboard(cls, telegram_id=None):
         return [
-            [cls.TYPE_ANSWER],
+            # [cls.TYPE_ANSWER],
             [cls.CANCEL],
         ]
 
