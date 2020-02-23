@@ -1,15 +1,12 @@
 import requests
 import urllib
 from config import BACKEND_URL
-import logging
 import json
 import datetime as dt
 
 from typing import Tuple, Dict
 
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from botlogging import logger
 
 
 def make_request(method: str, url: str, **kwargs) -> Tuple[int, Dict]:

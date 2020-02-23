@@ -1,0 +1,7 @@
+version: '3'
+
+services:
+  tgquiz-bot:
+    build: .
+    container_name: tgquiz_bot
+    command: sh -c "python3 bot.py"

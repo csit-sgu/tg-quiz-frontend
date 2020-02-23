@@ -9,16 +9,12 @@ import backend_api
 from time import sleep
 import datetime as dt
 from decimal import Decimal
-import logging
 
 # Typing
 from telegram import Update, User, Bot
 from typing import List
 
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-raiseExceptions = True
+from botlogging import logger
 
 
 def save_state(func):
@@ -476,7 +472,7 @@ class AdminStates:
             for profile in profiles:
                 ids.append(int(profile["tg_id"]))
 
-            return AdminStates.send_to_ids(ids, update.message.text, bot, update)
+            return AdminStates.send_to_ids(ids, "ОБЪЯВЛЕНИЕ ОТ МОДЕРАТОРОВ:", update.message.text, bot, update)
 
     @staticmethod
     @save_state
@@ -504,14 +500,14 @@ class AdminStates:
             return ADMIN_TASK_PUBLISHED
 
         else:
-            return AdminStates.send_to_ids(ids, msg, bot, update)
+            return AdminStates.send_to_ids(ids, "СООБЩЕНИЕ ОТ МОДЕРАТОРОВ:", msg, bot, update)
 
     @staticmethod
-    def send_to_ids(ids: List[int], message: str, bot: Bot, update: Update):
+    def send_to_ids(ids: List[int], prefix: str, message: str, bot: Bot, update: Update):
         errors = []
         for tg_id in ids:
             try:
-                bot.send_message(tg_id, message)
+                bot.send_message(tg_id, f"*{prefix}*\n\n{message}", parse_mode="Markdown")
                 print(tg_id)
             except Exception as e:
                 logger.debug(f"Got exception while announcing message: {e}")

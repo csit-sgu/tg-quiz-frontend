@@ -4,8 +4,7 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardMar
 # Typing
 from telegram import Update, User, Bot
 
-import logging
-from os import environ
+from os import getenv
 import json
 from config import TG_TOKEN, REQUEST_KWARGS
 
@@ -17,11 +16,7 @@ from keyboards import (
 from utils import *
 from states import States, AdminStates
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-raiseExceptions = True
+from botlogging import logger
 
 
 def start(bot: Bot, update: Update, user_data: dict):
@@ -77,7 +72,14 @@ def error(bot, update, error):
 
 
 def main():
-    updater = Updater(TG_TOKEN, request_kwargs=REQUEST_KWARGS)
+    is_prod = getenv('production', '')
+
+    if is_prod:
+        print('PRODUCTION ENVIRONMENT')
+        updater = Updater(TG_TOKEN)
+    else:
+        print('DEVELOPMENT ENVIRONMENT')
+        updater = Updater(TG_TOKEN, request_kwargs=REQUEST_KWARGS)
 
     dp = updater.dispatcher
     dp.add_error_handler(error)
