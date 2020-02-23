@@ -33,7 +33,6 @@ def start(bot: Bot, update: Update, user_data: dict):
 
     else:
         logger.debug(backend_api.register_user(user.id, user.username, user.full_name))
-        update.message.reply_text("Ты успешно зарегистрирован в системе!")
         return States.main_menu(bot, update, user_data)
 
 
@@ -44,7 +43,6 @@ def username_check(bot: Bot, update: Update, user_data):
 
     else:
         logger.debug(backend_api.register_user(user.id, user.username, user.full_name))
-        update.message.reply_text("Ты успешно зарегистрирован в системе!")
         return States.main_menu(bot, update, user_data)
 
 
