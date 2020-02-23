@@ -35,9 +35,6 @@ def calc_score(t, base_score=1000):
     return round(min(k * (t - max_t) * (t - max_t) + min_score, base_score), 2)
 
 
-def calculate_attempts(attempts):
-    pass
-
 class States:
     @staticmethod
     @save_state
@@ -173,7 +170,7 @@ class States:
         top = {}
 
         for attempt in attempts:
-            if not attempt["solved"]:
+            if not attempt["solved"] or attempt["profile"]["is_hidden"]:
                 continue
 
             if attempt["profile"]["tg_id"] not in top:
