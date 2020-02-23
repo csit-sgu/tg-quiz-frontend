@@ -28,9 +28,12 @@ def save_state(func):
 
 def calc_score(t, base_score=1000):
     base_score = Decimal(base_score)
-    min_score = Decimal(100)
+    min_score = base_score * Decimal(0.1)
     max_t = Decimal(720)
     k = (base_score - min_score) / (max_t * max_t)
+
+    if t >= max_t:
+        return round(min_score, 2)
 
     return round(min(k * (t - max_t) * (t - max_t) + min_score, base_score), 2)
 
@@ -198,16 +201,26 @@ class States:
             top_list = []
             for tg_id, stats in top.items():
                 top_list.append((
-                    stats['score'],
+                    stats['score'], tg_id,
                     f"{stats['fullname']} (@{stats['username']}) -- {stats['score']}pts"
                 ))
 
             top_list.sort(key=lambda p: p[0], reverse=True)
 
+            top_10_ids = []
+            places = {tg_id: place for place, (score, tg_id, text) in enumerate(top_list, 1)}
+
             top = ["Топ-10:"]
-            print(top_list)
-            for place, (score, text) in enumerate(top_list, 1):
+            for place, (score, tg_id, text) in enumerate(top_list[:10], 1):
                 top.append(str(place).rjust(2, " ") + ". " + text)
+                top_10_ids.append(tg_id)
+
+            if update.message.from_user.id not in top_10_ids:
+                if len(top_10_ids) == 10 and places[update.message.from_user.id] > 11:
+                    top.append("...")
+                this_place = places[update.message.from_user.id]
+                top.append(str(this_place).rjust(2, " ") + ". " + top_list[this_place - 1][2])
+
         except Exception as e:
             print(e)
 
