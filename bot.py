@@ -118,6 +118,11 @@ conversation_handler = ConversationHandler(
         ANSWER_RIGHT: [MessageHandler(Filters.text, States.main_menu, pass_user_data=True)],
         ANSWER_WRONG: [MessageHandler(Filters.text, States.show_task, pass_user_data=True)],
 
+        ASKING_QUESTION: [
+            MessageHandler(Filters.regex(BackToMenuKeyboard.CANCEL), States.main_menu, pass_user_data=True),
+            MessageHandler(Filters.text, States.ask_question, pass_user_data=True),
+        ],
+
         # ADMIN PANEL
 
         ADMIN_MENU: [
@@ -151,7 +156,10 @@ conversation_handler = ConversationHandler(
         ADMIN_ACCESS_DENIED: [MessageHandler(Filters.text, States.main_menu, pass_user_data=True)],
     },
 
-    fallbacks=[CommandHandler('stop', stop)]
+    fallbacks=[
+        CommandHandler('stop', stop),
+        MessageHandler(Filters.regex(MenuKeyboard.HELP), States.prompt_question, pass_user_data=True),
+    ]
 )
 
 if __name__ == '__main__':

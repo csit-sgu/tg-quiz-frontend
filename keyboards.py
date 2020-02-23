@@ -13,6 +13,7 @@ class MenuKeyboard(Keyboard):
     TOP_10 = "Топ-10📊"
     RULES = "Правилаℹ️"
     ADMIN = "/admin"
+    HELP = "Задать вопрос🆘"
 
     @classmethod
     def get_keyboard(cls, telegram_id=None):
@@ -23,11 +24,13 @@ class MenuKeyboard(Keyboard):
                     [cls.ADMIN],
                     [cls.CHOOSE_TASK],
                     [cls.TOP_10, cls.RULES],
+                    [cls.HELP],
                 ]
 
         return [
             [cls.CHOOSE_TASK],
             [cls.TOP_10, cls.RULES],
+            [cls.HELP],
         ]
 
 

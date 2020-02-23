@@ -45,6 +45,44 @@ def calculate_attempts(attempts):
 class States:
     @staticmethod
     @save_state
+    def prompt_question(bot: Bot, update: Update, user_data: dict):
+        update.message.reply_text(
+            "Введите свой вопрос, админы вам ответят, как только появится возможность, "
+            "поэтому следите за сообщениями от бота.",
+            reply_markup=ReplyKeyboardMarkup(BackToMenuKeyboard.get_keyboard())
+        )
+
+        return ASKING_QUESTION
+
+    @staticmethod
+    @save_state
+    def ask_question(bot: Bot, update: Update, user_data: dict):
+        question = update.message.text
+
+        code, profiles = backend_api.get_profiles()
+        if code != 200:
+            pass
+
+        user_id = update.message.from_user.id
+        username = update.message.from_user.full_name
+
+        for profile in profiles:
+            if profile["is_admin"]:
+                bot.send_message(
+                    profile["tg_id"], f"*ВОПРОС ОТ ПОЛЬЗОВАТЕЛЯ {username} ({user_id})*:\n\n{question}",
+                    parse_mode="Markdown"
+                )
+
+        update.message.reply_text(
+            "Ваш вопрос был отправлен на рассмотрение, ожидайте ответ.",
+            reply_markup=ReplyKeyboardMarkup(ContinueKeyboard.get_keyboard())
+        )
+
+        return ANSWER_RIGHT
+
+
+    @staticmethod
+    @save_state
     def wait_for_username(bot: Bot, update: Update, user_data: dict):
         update.message.reply_text(
             "По правилам квиза ты не можешь участвовать, если у тебя не указано "
@@ -85,7 +123,6 @@ class States:
 
                     t = Decimal((ts - fp).total_seconds()) / Decimal(60)
                     plr_score = calc_score(t, attempt["task"]["base_score"])
-                    print(plr_score)
                     full_score += plr_score
 
                     menu_text.append(
