@@ -23,7 +23,9 @@ def start(bot: Bot, update: Update, user_data: dict):
     user_data.update({"chosen_task": None})
 
     update.message.reply_text(
-        "Привет! Ты вошел в телеграм-квиз с мемами про наш любимый КНиИТ!",
+        "Привет! Ты вошел в телеграм-квиз от программистов нашего любимого КНиИТа!\n"
+        "Если возникнут какие-то проблемы с ботом, то нажмите на кнопку Задать вопрос, "
+        "а в крайнем случае пишите сюда -> @vasthecat",
         reply_markup=ReplyKeyboardRemove()
     )
 
