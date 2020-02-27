@@ -10,7 +10,7 @@ class Keyboard(ABC):
 
 class MenuKeyboard(Keyboard):
     CHOOSE_TASK = "Выбрать задание📚"
-    TOP_10 = "Топ-10📊"
+    TOP_10 = "hidden Топ-10📊"
     RULES = "Правилаℹ️"
     ADMIN = "/admin"
     HELP = "Задать вопрос🆘"
@@ -29,7 +29,7 @@ class MenuKeyboard(Keyboard):
 
         return [
             [cls.CHOOSE_TASK],
-            [cls.TOP_10, cls.RULES],
+            [cls.RULES],
             [cls.HELP],
         ]
 
